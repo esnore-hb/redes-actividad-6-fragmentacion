@@ -2,17 +2,67 @@
 
 Pruebas locales realizadas el 18 de noviembre de 2026 con Python y sockets UDP.
 
-## Implementación
+## Flujo de funcionamiento
 
-El header ocupa 20 bytes: IP (4), puerto (2), TTL (1), ID (4), offset (4), tamaño (4) y FLAG (1). Los enteros se codifican en big-endian usando to_bytes() y se leen con int.from_bytes() o acceso directo para campos de un byte. Los cortes son IP [0:4], puerto [4:6], TTL [6], ID [7:11], offset [11:15], tamaño [15:19] y FLAG [19]; el mensaje comienza en [20:]. Tamaño cuenta exclusivamente bytes del payload; offset también se mide en bytes. El parseo rechaza headers truncados, tamaños incoherentes y flags distintos de 0 y 1.
+El sistema extiende el forwarding con TTL de actividad 5. Cada router es un proceso con un socket UDP propio; en la simulación comparten la IP 127.0.0.1 y se distinguen por el puerto. El emisor indica por separado el destino final del header y el router de entrada: enviar inicialmente a R1 no cambia que el paquete pueda estar dirigido a R5.
 
-Se extendió la versión final de actividad 5: las funciones parse_packet y create_packet agregan los campos de fragmentación; check_routes conserva sus argumentos y retorna ahora siguiente salto junto con MTU. También se conserva el orden de los primeros seis argumentos del emisor, agregando un ID obligatorio y un tamaño total opcional. Los argumentos se leen mediante sys.argv, como en actividad 5. El ID lo elige el usuario y debe distinguir datagramas simultáneos. El router usa socket, sys e ipaddress; el emisor, socket y sys. La codificación se expresa con operaciones básicas de bytes, sin struct; no se usan argparse ni secrets.
+1. El emisor codifica el mensaje en UTF-8, construye el header y envía el datagrama al router de entrada.
+2. El router espera paquetes en un ciclo bloqueante. Al recibir uno, interpreta su header y comprueba la coherencia del tamaño y del FLAG. Los paquetes inválidos se descartan con un diagnóstico.
+3. Si el TTL recibido es 0, descarta el paquete, incluso si está dirigido al propio router.
+4. Si la IP y el puerto destino coinciden con los del router, guarda el fragmento en la lista de su ID e intenta reensamblar. Si aún faltan datos, vuelve a esperar; si está completo, imprime únicamente el mensaje y elimina esa lista.
+5. Si el destino es otro router, consulta el siguiente salto y su MTU. Si no hay ruta, descarta el paquete. Si existe, resta uno al TTL, fragmenta cuando sea necesario y envía todos los fragmentos producidos por el siguiente salto elegido. Después vuelve a esperar otro paquete.
 
-Cada tabla indica red, rango de puertos destino, siguiente salto y MTU. Se respeta la primera área coincidente y se alternan sus rutas con round-robin por área (red y rango de puertos), como en actividad 5. Cada recepción reenviada elige una ruta; sus subfragmentos comparten siguiente salto y MTU. El TTL disminuye una vez antes de reenviar. TTL 0 se descarta incluso en destino; TTL 1 puede entregarse localmente o reenviarse como TTL 0, que el siguiente router descarta.
+Las líneas FORWARD y DESCARTE permiten observar las decisiones de los routers; no son entregas del mensaje a la aplicación. Los routers intermedios no reensamblan los datos.
 
-Si el paquete completo supera el MTU, cada fragmento transporta hasta MTU - 20 bytes de datos. Su offset suma el desplazamiento dentro del padre al offset del padre. Todos los subfragmentos salvo el último llevan FLAG 1; el último conserva el FLAG del padre. Así, refragmentar un fragmento intermedio no lo convierte erróneamente en el final del datagrama.
+## Decisiones de diseño
 
-En destino se almacenan listas por ID. Después de cada recepción se ordenan por offset, se verifica cobertura continua desde cero y se exige un último fragmento con FLAG 0. Solo entonces se imprime el payload y se elimina la lista. El TTL del paquete rearmado corresponde al mínimo recibido. La comparación binaria con el original se prueba sin tránsito; durante el tránsito el TTL cambia legítimamente.
+### Representación de los paquetes
+
+Elegimos un header binario de campos de ancho fijo para poder separar los datos por posición, sin delimitadores que pudieran confundirse con el contenido del mensaje. Los enteros se codifican en big-endian para que emisor y routers interpreten el mismo orden de bytes. La estructura ocupa 20 bytes:
+
+| Campo | Bytes | Motivo de la elección |
+| --- | ---: | --- |
+| IP | 4 | Representar IPv4 y mantener el formato de actividad 5. |
+| Puerto | 2 | Representar los puertos de la simulación y conservar actividad 5. |
+| TTL | 1 | Cubrir el rango 0-255 con el mismo comportamiento de actividad 5. |
+| ID | 4 | Disponer de identificadores entre 0 y 2^32 - 1 sin limitarse a pocos envíos. |
+| Offset | 4 | Representar posiciones en bytes con el mismo ancho que el tamaño. |
+| Tamaño | 4 | Cumplir el ancho exigido por el enunciado; cuenta solo los datos. |
+| FLAG | 1 | Representar 0 o 1 directamente, sin operaciones adicionales de bits. |
+
+Los cuatro bytes de ID y offset amplían su rango a costa de un header mayor. Esto reduce la cantidad de datos que cabe en cada fragmento, por lo que el cálculo de capacidad siempre descuenta los 20 bytes completos. El ID lo elige el usuario y debe distinguir datagramas simultáneos; un rango amplio no evita por sí solo que se reutilice un ID.
+
+Usamos un diccionario con campos nombrados para trabajar con la información interpretada: permite acceder a TTL, offset o mensaje sin recordar sus posiciones en el header. Las funciones parse_packet y create_packet concentran la conversión entre esa representación y los bytes enviados, para que el resto de las funciones no repita la codificación. Se usan cortes de bytes, int.from_bytes() y to_bytes() para expresar explícitamente el formato, siguiendo el estilo de actividad 5, sin necesitar struct.
+
+El mensaje permanece en bytes durante la fragmentación y el reensamblaje. Esta elección evita confundir cantidad de caracteres con tamaño real: una letra con tilde o un emoji puede ocupar varios bytes y quedar dividido entre fragmentos. La conversión a texto se realiza después de recuperar el mensaje completo.
+
+### Rutas, MTU y TTL
+
+Conservamos round-robin por área de red, identificada por la red y el rango de puertos. Así, destinos de una misma área comparten turno, mientras que el tráfico hacia otra área no altera su alternancia. Se respeta la primera área coincidente de la tabla y se alternan sus alternativas. check_routes retorna el siguiente salto junto con su MTU para mantener asociados el enlace elegido y el límite que debe respetar el envío.
+
+Cada paquete o fragmento recibido elige una ruta una sola vez; sus subfragmentos comparten siguiente salto y MTU. Esto permite fragmentar usando el límite de ese enlace. Al llegar al próximo router, cada fragmento puede encontrar otro MTU y necesitar refragmentación.
+
+El TTL se resta una vez por reenvío, antes de fragmentar, para que dividir un paquete no cuente como varios saltos. Se conserva la regla de actividad 5: un TTL 1 puede entregarse localmente o reenviarse como TTL 0, que el siguiente router descarta. Así se limitan los recorridos cíclicos sin modificar el destino final del header.
+
+Se mantiene ipaddress, ya utilizado en actividad 5, para comprobar pertenencia a redes CIDR en lugar de comparar solo cadenas de IP. Las tablas provistas se conservan: en R5, la dirección sin prefijo se interpreta como /32 y coincide con 127.0.0.1, utilizada en esta simulación.
+
+### Fragmentación y reensamblaje
+
+La capacidad de datos se calcula como MTU - 20, porque cada fragmento necesita su propio header. Usamos toda esa capacidad salvo en el último trozo para evitar producir más fragmentos de los necesarios para el enlace elegido. Si el paquete ya cabe, se devuelve sin cambios dentro de una lista, de modo que el reenvío pueda recorrer el resultado de la misma forma en ambos casos.
+
+En la refragmentación, el offset suma el desplazamiento dentro del padre al offset del padre, porque debe seguir indicando la posición en el datagrama original. Todos los subfragmentos salvo el último llevan FLAG 1; el último conserva el FLAG del padre. Poner siempre FLAG 0 al terminar de dividir un padre sería incorrecto: podrían existir otros fragmentos posteriores del datagrama original.
+
+En destino usamos un diccionario de listas por ID, como pide el enunciado, para separar datagramas que llegan intercalados. Ordenar cada lista por offset permite reconstruir mensajes que llegan desordenados. No basta con recibir FLAG 0: también exigimos cobertura continua desde offset 0, porque podría haber llegado el último fragmento antes que los anteriores. Por eso una lista de un elemento solo está completa cuando su offset es 0 y su FLAG es 0.
+
+Los duplicados idénticos se toleran mientras el datagrama está pendiente; los solapamientos incompatibles no se aceptan como un mensaje completo. Al terminar se elimina la lista para liberar sus fragmentos. El TTL del paquete rearmado se define como el mínimo recibido, una decisión conservadora porque los fragmentos pueden recorrer caminos con distinta cantidad de saltos. La comparación binaria con el original se realiza sin tránsito; durante el tránsito el TTL cambia legítimamente.
+
+### Interfaz y verificación
+
+Conservamos los primeros seis argumentos del emisor de actividad 5 y agregamos ID obligatorio y tamaño total opcional. Se leen con sys.argv para mantener una interfaz sencilla, repetible desde la terminal y consistente con la actividad anterior, sin argparse. Pedir el ID explícitamente evita generación aleatoria y permite identificar cada envío en las trazas. El tamaño total opcional rellena los datos con puntos para reproducir exactamente el experimento de 150 bytes.
+
+Usamos el emisor binario para realizar los envíos. Aunque un apartado menciona netcat, otro pide el script de forwarding y el protocolo requiere campos binarios: escribir IP, puerto y mensaje como texto no construye ese header. El router usa socket, sys e ipaddress; el emisor, socket y sys. No se utiliza secrets.
+
+Separamos las pruebas de funciones de las pruebas con procesos UDP: las primeras permiten comprobar límites de tamaño y fragmentos faltantes de forma controlada; las segundas verifican que el ciclo de recepción, las rutas y el envío realmente se integran. Para los datagramas grandes usamos TTL 30 y comprobamos el agotamiento en casos separados, de modo que un descarte por TTL no oculte el funcionamiento de la fragmentación.
 
 ## Pruebas y observaciones
 
@@ -54,7 +104,25 @@ python prueba_red.py
 
 El primer comando ejecuta las 15 pruebas. El segundo levanta sus cinco routers, realiza los envíos, comprueba MTU y entrega, escribe evidencia-red.txt y cierra los procesos. Los puertos 28881-28885 deben estar disponibles. El orden global de las líneas de diagnóstico y algunos recorridos pueden variar entre ejecuciones porque los routers son procesos concurrentes; la tabla anterior corresponde a la evidencia incluida.
 
-Para un envío manual, con los cinco routers del README.md escuchando en 8881-8885:
+Para ejecutar manualmente la red, abrir cinco terminales en la carpeta del repositorio y ejecutar una línea en cada una. Cada línea inicia un proceso independiente:
+
+```powershell
+python router.py 127.0.0.1 8881 rutas_R1_v3_mtu.txt
+python router.py 127.0.0.1 8882 rutas_R2_v3_mtu.txt
+python router.py 127.0.0.1 8883 rutas_R3_v3_mtu.txt
+python router.py 127.0.0.1 8884 rutas_R4_v3_mtu.txt
+python router.py 127.0.0.1 8885 rutas_R5_v3_mtu.txt
+```
+
+Los argumentos son IP donde escucha el router, puerto y archivo de rutas. Cada línea de ese archivo contiene `red puerto_inicial puerto_final IP_siguiente puerto_siguiente MTU`. Los archivos deben mantenerse junto al código al usar estos comandos. Los puertos 8881-8885 deben estar disponibles y los procesos se pueden detener con Ctrl+C.
+
+Con los cinco routers esperando paquetes, desde una sexta terminal ejecutar el emisor con esta interfaz:
+
+```text
+python enviar.py IP_final puerto_final "mensaje" IP_envio puerto_envio TTL ID [tamano_total]
+```
+
+Por ejemplo:
 
 ```powershell
 python enviar.py 127.0.0.1 8885 'hola!' 127.0.0.1 8881 10 347
