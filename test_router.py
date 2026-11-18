@@ -127,5 +127,21 @@ class ReassemblyTests(unittest.TestCase):
         self.assertEqual(reassemble_IP_packet(fragments[::-1]), original)
 
 
+
+class HeaderTests(unittest.TestCase):
+    def test_binary_roundtrip(self):
+        raw = (b"\x7f\x00\x00\x01" + (8885).to_bytes(2, "big") + b"\x0a"
+               + (347).to_bytes(4, "big") + bytes(4)
+               + (256).to_bytes(4, "big") + b"\x00" + bytes(range(256)))
+        self.assertEqual(HEADER_SIZE, 20)
+        self.assertEqual(create_packet(parse_packet(raw)), raw)
+        self.assertEqual(parse_packet(raw)["tamano"], 256)
+
+    def test_invalid_packets(self):
+        for raw in (b"short", packet()[:-1], packet() + b"extra"):
+            with self.assertRaises(ValueError):
+                parse_packet(raw)
+
+
 if __name__ == "__main__":
     unittest.main()

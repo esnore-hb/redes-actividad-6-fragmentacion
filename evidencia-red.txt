@@ -1,0 +1,168 @@
+R1 LISTO 127.0.0.1:28881
+R2 LISTO 127.0.0.1:28882
+R3 LISTO 127.0.0.1:28883
+R4 LISTO 127.0.0.1:28884
+R5 LISTO 127.0.0.1:28885
+R1 FORWARD id=347 offset=0 size=25 flag=0 ttl=9 next=28882 mtu=100
+R2 FORWARD id=347 offset=0 size=25 flag=0 ttl=8 next=28883 mtu=50
+R3 FORWARD id=347 offset=0 size=25 flag=0 ttl=7 next=28882 mtu=50
+R2 FORWARD id=347 offset=0 size=25 flag=0 ttl=6 next=28884 mtu=80
+R4 FORWARD id=347 offset=0 size=25 flag=0 ttl=5 next=28882 mtu=80
+R2 FORWARD id=347 offset=0 size=25 flag=0 ttl=4 next=28883 mtu=50
+R3 FORWARD id=347 offset=0 size=25 flag=0 ttl=3 next=28885 mtu=55
+R5 hola!
+R1 FORWARD id=348 offset=0 size=25 flag=0 ttl=9 next=28882 mtu=100
+R2 FORWARD id=348 offset=0 size=25 flag=0 ttl=8 next=28884 mtu=80
+R4 FORWARD id=348 offset=0 size=25 flag=0 ttl=7 next=28885 mtu=140
+R5 hola1
+R1 FORWARD id=349 offset=0 size=25 flag=0 ttl=9 next=28882 mtu=100
+R2 FORWARD id=349 offset=0 size=25 flag=0 ttl=8 next=28883 mtu=50
+R3 FORWARD id=349 offset=0 size=25 flag=0 ttl=7 next=28882 mtu=50
+R2 FORWARD id=349 offset=0 size=25 flag=0 ttl=6 next=28884 mtu=80
+R4 FORWARD id=349 offset=0 size=25 flag=0 ttl=5 next=28882 mtu=80
+R2 FORWARD id=349 offset=0 size=25 flag=0 ttl=4 next=28883 mtu=50
+R3 FORWARD id=349 offset=0 size=25 flag=0 ttl=3 next=28885 mtu=55
+R5 hola2
+R1 FORWARD id=350 offset=0 size=25 flag=0 ttl=9 next=28882 mtu=100
+R2 FORWARD id=350 offset=0 size=25 flag=0 ttl=8 next=28884 mtu=80
+R4 FORWARD id=350 offset=0 size=25 flag=0 ttl=7 next=28885 mtu=140
+R5 hola3
+CASO id=1000 origen=R1 total=150 payload=130
+R1 FORWARD id=1000 offset=0 size=100 flag=1 ttl=29 next=28882 mtu=100
+R1 FORWARD id=1000 offset=80 size=70 flag=0 ttl=29 next=28882 mtu=100
+R2 FORWARD id=1000 offset=0 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1000 offset=30 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1000 offset=60 size=40 flag=1 ttl=28 next=28883 mtu=50
+R3 FORWARD id=1000 offset=0 size=50 flag=1 ttl=27 next=28882 mtu=50
+R2 FORWARD id=1000 offset=80 size=70 flag=0 ttl=28 next=28884 mtu=80
+R3 FORWARD id=1000 offset=30 size=50 flag=1 ttl=27 next=28885 mtu=55
+R2 FORWARD id=1000 offset=0 size=50 flag=1 ttl=26 next=28883 mtu=50
+R4 FORWARD id=1000 offset=80 size=70 flag=0 ttl=27 next=28882 mtu=80
+R3 FORWARD id=1000 offset=60 size=40 flag=1 ttl=27 next=28882 mtu=50
+R2 FORWARD id=1000 offset=80 size=70 flag=0 ttl=26 next=28884 mtu=80
+R3 FORWARD id=1000 offset=0 size=50 flag=1 ttl=25 next=28885 mtu=55
+R2 FORWARD id=1000 offset=60 size=40 flag=1 ttl=26 next=28883 mtu=50
+R4 FORWARD id=1000 offset=80 size=70 flag=0 ttl=25 next=28885 mtu=140
+R3 FORWARD id=1000 offset=60 size=40 flag=1 ttl=25 next=28882 mtu=50
+R2 FORWARD id=1000 offset=60 size=40 flag=1 ttl=24 next=28884 mtu=80
+R4 FORWARD id=1000 offset=60 size=40 flag=1 ttl=23 next=28882 mtu=80
+R2 FORWARD id=1000 offset=60 size=40 flag=1 ttl=22 next=28883 mtu=50
+R3 FORWARD id=1000 offset=60 size=40 flag=1 ttl=21 next=28885 mtu=55
+R5 desde-R1-id1000:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CASO id=1001 origen=R1 total=150 payload=130
+R1 FORWARD id=1001 offset=0 size=100 flag=1 ttl=29 next=28882 mtu=100
+R1 FORWARD id=1001 offset=80 size=70 flag=0 ttl=29 next=28882 mtu=100
+R2 FORWARD id=1001 offset=0 size=80 flag=1 ttl=28 next=28884 mtu=80
+R2 FORWARD id=1001 offset=60 size=40 flag=1 ttl=28 next=28884 mtu=80
+R4 FORWARD id=1001 offset=0 size=80 flag=1 ttl=27 next=28885 mtu=140
+R2 FORWARD id=1001 offset=80 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1001 offset=110 size=40 flag=0 ttl=28 next=28883 mtu=50
+R4 FORWARD id=1001 offset=60 size=40 flag=1 ttl=27 next=28882 mtu=80
+R3 FORWARD id=1001 offset=80 size=50 flag=1 ttl=27 next=28882 mtu=50
+R2 FORWARD id=1001 offset=60 size=40 flag=1 ttl=26 next=28884 mtu=80
+R3 FORWARD id=1001 offset=110 size=40 flag=0 ttl=27 next=28885 mtu=55
+R2 FORWARD id=1001 offset=80 size=50 flag=1 ttl=26 next=28883 mtu=50
+R4 FORWARD id=1001 offset=60 size=40 flag=1 ttl=25 next=28885 mtu=140
+R3 FORWARD id=1001 offset=80 size=50 flag=1 ttl=25 next=28882 mtu=50
+R2 FORWARD id=1001 offset=80 size=50 flag=1 ttl=24 next=28884 mtu=80
+R4 FORWARD id=1001 offset=80 size=50 flag=1 ttl=23 next=28882 mtu=80
+R2 FORWARD id=1001 offset=80 size=50 flag=1 ttl=22 next=28883 mtu=50
+R3 FORWARD id=1001 offset=80 size=50 flag=1 ttl=21 next=28885 mtu=55
+R5 desde-R1-id1001:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CASO id=1002 origen=R2 total=150 payload=130
+R2 FORWARD id=1002 offset=0 size=80 flag=1 ttl=29 next=28884 mtu=80
+R2 FORWARD id=1002 offset=60 size=80 flag=1 ttl=29 next=28884 mtu=80
+R2 FORWARD id=1002 offset=120 size=30 flag=0 ttl=29 next=28884 mtu=80
+R4 FORWARD id=1002 offset=0 size=80 flag=1 ttl=28 next=28885 mtu=140
+R4 FORWARD id=1002 offset=60 size=80 flag=1 ttl=28 next=28882 mtu=80
+R4 FORWARD id=1002 offset=120 size=30 flag=0 ttl=28 next=28885 mtu=140
+R2 FORWARD id=1002 offset=60 size=50 flag=1 ttl=27 next=28883 mtu=50
+R2 FORWARD id=1002 offset=90 size=50 flag=1 ttl=27 next=28883 mtu=50
+R3 FORWARD id=1002 offset=60 size=50 flag=1 ttl=26 next=28882 mtu=50
+R3 FORWARD id=1002 offset=90 size=50 flag=1 ttl=26 next=28885 mtu=55
+R2 FORWARD id=1002 offset=60 size=50 flag=1 ttl=25 next=28884 mtu=80
+R4 FORWARD id=1002 offset=60 size=50 flag=1 ttl=24 next=28882 mtu=80
+R2 FORWARD id=1002 offset=60 size=50 flag=1 ttl=23 next=28883 mtu=50
+R3 FORWARD id=1002 offset=60 size=50 flag=1 ttl=22 next=28882 mtu=50
+R2 FORWARD id=1002 offset=60 size=50 flag=1 ttl=21 next=28884 mtu=80
+R4 FORWARD id=1002 offset=60 size=50 flag=1 ttl=20 next=28885 mtu=140
+R5 desde-R2-id1002:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CASO id=1003 origen=R3 total=150 payload=130
+R3 FORWARD id=1003 offset=0 size=55 flag=1 ttl=29 next=28885 mtu=55
+R3 FORWARD id=1003 offset=35 size=55 flag=1 ttl=29 next=28885 mtu=55
+R3 FORWARD id=1003 offset=70 size=55 flag=1 ttl=29 next=28885 mtu=55
+R3 FORWARD id=1003 offset=105 size=45 flag=0 ttl=29 next=28885 mtu=55
+R5 desde-R3-id1003:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CASO id=1004 origen=R4 total=150 payload=130
+R4 FORWARD id=1004 offset=0 size=80 flag=1 ttl=29 next=28882 mtu=80
+R4 FORWARD id=1004 offset=60 size=80 flag=1 ttl=29 next=28882 mtu=80
+R4 FORWARD id=1004 offset=120 size=30 flag=0 ttl=29 next=28882 mtu=80
+R2 FORWARD id=1004 offset=0 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1004 offset=30 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1004 offset=60 size=80 flag=1 ttl=28 next=28884 mtu=80
+R3 FORWARD id=1004 offset=0 size=50 flag=1 ttl=27 next=28882 mtu=50
+R2 FORWARD id=1004 offset=120 size=30 flag=0 ttl=28 next=28883 mtu=50
+R4 FORWARD id=1004 offset=60 size=80 flag=1 ttl=27 next=28885 mtu=140
+R3 FORWARD id=1004 offset=30 size=50 flag=1 ttl=27 next=28885 mtu=55
+R2 FORWARD id=1004 offset=0 size=50 flag=1 ttl=26 next=28884 mtu=80
+R3 FORWARD id=1004 offset=120 size=30 flag=0 ttl=27 next=28882 mtu=50
+R4 FORWARD id=1004 offset=0 size=50 flag=1 ttl=25 next=28882 mtu=80
+R2 FORWARD id=1004 offset=120 size=30 flag=0 ttl=26 next=28883 mtu=50
+R2 FORWARD id=1004 offset=0 size=50 flag=1 ttl=24 next=28884 mtu=80
+R3 FORWARD id=1004 offset=120 size=30 flag=0 ttl=25 next=28885 mtu=55
+R4 FORWARD id=1004 offset=0 size=50 flag=1 ttl=23 next=28885 mtu=140
+R5 desde-R4-id1004:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CASO id=1005 origen=R1 total=150 payload=130
+R1 FORWARD id=1005 offset=0 size=100 flag=1 ttl=29 next=28882 mtu=100
+R1 FORWARD id=1005 offset=80 size=70 flag=0 ttl=29 next=28882 mtu=100
+R2 FORWARD id=1005 offset=0 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1005 offset=30 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1005 offset=60 size=40 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=1005 offset=80 size=70 flag=0 ttl=28 next=28884 mtu=80
+R3 FORWARD id=1005 offset=0 size=50 flag=1 ttl=27 next=28882 mtu=50
+R4 FORWARD id=1005 offset=80 size=70 flag=0 ttl=27 next=28882 mtu=80
+R2 FORWARD id=1005 offset=0 size=50 flag=1 ttl=26 next=28883 mtu=50
+R3 FORWARD id=1005 offset=30 size=50 flag=1 ttl=27 next=28885 mtu=55
+R2 FORWARD id=1005 offset=80 size=70 flag=0 ttl=26 next=28884 mtu=80
+R3 FORWARD id=1005 offset=60 size=40 flag=1 ttl=27 next=28882 mtu=50
+R4 FORWARD id=1005 offset=80 size=70 flag=0 ttl=25 next=28885 mtu=140
+R3 FORWARD id=1005 offset=0 size=50 flag=1 ttl=25 next=28885 mtu=55
+R2 FORWARD id=1005 offset=60 size=40 flag=1 ttl=26 next=28883 mtu=50
+R3 FORWARD id=1005 offset=60 size=40 flag=1 ttl=25 next=28882 mtu=50
+R2 FORWARD id=1005 offset=60 size=40 flag=1 ttl=24 next=28884 mtu=80
+R4 FORWARD id=1005 offset=60 size=40 flag=1 ttl=23 next=28882 mtu=80
+R2 FORWARD id=1005 offset=60 size=40 flag=1 ttl=22 next=28883 mtu=50
+R3 FORWARD id=1005 offset=60 size=40 flag=1 ttl=21 next=28885 mtu=55
+R5 desde-R1-id1005:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+R1 FORWARD id=2000 offset=0 size=38 flag=0 ttl=0 next=28882 mtu=100
+R2 DESCARTE TTL id=2000 offset=0
+R1 FORWARD id=2001 offset=0 size=100 flag=1 ttl=0 next=28882 mtu=100
+R1 FORWARD id=2001 offset=80 size=70 flag=0 ttl=0 next=28882 mtu=100
+R2 DESCARTE TTL id=2001 offset=0
+R2 DESCARTE TTL id=2001 offset=80
+R5 DESCARTE TTL id=2002 offset=0
+R1 DESCARTE SIN RUTA id=2003
+R5 ordenado:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+R5 desordenado:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+R5 intercalado:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+EMISOR Enviados 150 bytes (header=20, payload=130)
+R1 FORWARD id=4000 offset=0 size=100 flag=1 ttl=29 next=28882 mtu=100
+R1 FORWARD id=4000 offset=80 size=70 flag=0 ttl=29 next=28882 mtu=100
+R2 FORWARD id=4000 offset=0 size=80 flag=1 ttl=28 next=28884 mtu=80
+R2 FORWARD id=4000 offset=60 size=40 flag=1 ttl=28 next=28884 mtu=80
+R4 FORWARD id=4000 offset=0 size=80 flag=1 ttl=27 next=28885 mtu=140
+R2 FORWARD id=4000 offset=80 size=50 flag=1 ttl=28 next=28883 mtu=50
+R2 FORWARD id=4000 offset=110 size=40 flag=0 ttl=28 next=28883 mtu=50
+R4 FORWARD id=4000 offset=60 size=40 flag=1 ttl=27 next=28882 mtu=80
+R3 FORWARD id=4000 offset=80 size=50 flag=1 ttl=27 next=28882 mtu=50
+R2 FORWARD id=4000 offset=60 size=40 flag=1 ttl=26 next=28884 mtu=80
+R3 FORWARD id=4000 offset=110 size=40 flag=0 ttl=27 next=28885 mtu=55
+R2 FORWARD id=4000 offset=80 size=50 flag=1 ttl=26 next=28883 mtu=50
+R4 FORWARD id=4000 offset=60 size=40 flag=1 ttl=25 next=28885 mtu=140
+R3 FORWARD id=4000 offset=80 size=50 flag=1 ttl=25 next=28882 mtu=50
+R2 FORWARD id=4000 offset=80 size=50 flag=1 ttl=24 next=28884 mtu=80
+R4 FORWARD id=4000 offset=80 size=50 flag=1 ttl=23 next=28882 mtu=80
+R2 FORWARD id=4000 offset=80 size=50 flag=1 ttl=22 next=28883 mtu=50
+R3 FORWARD id=4000 offset=80 size=50 flag=1 ttl=21 next=28885 mtu=55
+R5 desde-emisor:.....................................................................................................................
+RESULTADO: OK; 4 pequeños, 6 de 150 bytes, TTL de paquete y fragmentos, TTL 0 en destino, sin ruta, 3 reensamblajes directos y emisor CLI de 150 bytes.
