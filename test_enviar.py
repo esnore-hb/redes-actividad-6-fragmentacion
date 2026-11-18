@@ -25,7 +25,7 @@ class SenderTests(unittest.TestCase):
             entry_port = receiver.getsockname()[1]
             message = "hola ñ 🐶"
             result = self.run_sender("127.0.0.1", "8885", message,
-                "127.0.0.1", str(entry_port), "10", "--id", "347", "--total", "150")
+                "127.0.0.1", str(entry_port), "10", "347", "150")
             self.assertEqual(result.returncode, 0, result.stderr)
             raw, _ = receiver.recvfrom(65535)
             self.assertEqual(len(raw), 150)
@@ -33,23 +33,25 @@ class SenderTests(unittest.TestCase):
                 ttl=10, id=347, offset=0, tamano=130, flag=0,
                 mensaje=message.encode("utf-8").ljust(130, b".")))
             result = self.run_sender("127.0.0.1", "8885", "sin relleno",
-                "127.0.0.1", str(entry_port), "10")
+                "127.0.0.1", str(entry_port), "10", "348")
             self.assertEqual(result.returncode, 0, result.stderr)
             raw, _ = receiver.recvfrom(65535)
             packet = parse_packet(raw)
             self.assertEqual(packet["mensaje"], b"sin relleno")
-            self.assertGreaterEqual(packet["id"], 0)
-            self.assertLess(packet["id"], 2**32)
+            self.assertEqual(packet["id"], 348)
 
     def test_invalid_arguments_are_rejected(self):
         base = ["127.0.0.1", "8885", "hola", "127.0.0.1", "8881", "10"]
         invalid = [base[:-1] + [ttl] for ttl in ("0", "-1", "256")]
-        invalid += [base + ["--id", "4294967296"], base + ["--total", "23"],
-                    base + ["--total", "65508"], ["no-es-ip"] + base[1:]]
+        invalid = [arguments + ["347"] for arguments in invalid]
+        invalid += [base, base + ["4294967296"], base + ["-1"],
+                    base + ["347", "23"], base + ["347", "65508"],
+                    base + ["347", "1000000000000"],
+                    base + ["no-es-numero"], ["no-es-ip"] + base[1:] + ["347"]]
         for arguments in invalid:
             with self.subTest(arguments=arguments):
                 result = self.run_sender(*arguments)
-                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.returncode, 1)
                 self.assertNotIn("Traceback", result.stderr)
 
 

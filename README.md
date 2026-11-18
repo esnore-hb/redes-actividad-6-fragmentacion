@@ -18,8 +18,8 @@ python router.py 127.0.0.1 8885 rutas_R5_v3_mtu.txt
 Desde otra terminal:
 
 ```powershell
-python enviar.py 127.0.0.1 8885 'hola!' 127.0.0.1 8881 10 --id 347
-python enviar.py 127.0.0.1 8885 'mensaje de prueba' 127.0.0.1 8881 30 --total 150 --id 348
+python enviar.py 127.0.0.1 8885 'hola!' 127.0.0.1 8881 10 347
+python enviar.py 127.0.0.1 8885 'mensaje de prueba' 127.0.0.1 8881 30 348 150
 ```
 
 Usar un ID nuevo por datagrama en vuelo. No enviar un header textual con netcat:
@@ -27,8 +27,11 @@ el emisor construye los campos binarios y calcula el tamaño del payload en byte
 El receptor imprime el mensaje completo solo después de reensamblarlo.
 Las líneas FORWARD y DESCARTE son diagnósticos.
 La interfaz conserva el orden de argumentos de actividad 5:
-`IP_final puerto_final mensaje IP_envio puerto_envio TTL`; se agregan `--id`
-(opcional, aleatorio de 32 bits por defecto) y `--total` (relleno con puntos).
+`IP_final puerto_final mensaje IP_envio puerto_envio TTL`; se agrega un `ID`
+obligatorio y, opcionalmente, `tamano_total` para completar el payload con puntos.
+Se leen directamente con `sys.argv`, igual que en actividad 5. Por ejemplo,
+`10 347` indica TTL 10 e ID 347; `30 348 150` indica TTL 30, ID 348 y 150 bytes
+totales. El usuario debe cambiar el ID entre datagramas simultáneos.
 
 ## Verificación
 
@@ -45,7 +48,7 @@ y dos de la interfaz del emisor. La prueba de cinco routers se ejecuta aparte.
 
 ## Contrato binario
 
-Orden de red (big-endian), formato struct `!4sHBIIIB`:
+Orden de red (big-endian), con cortes de bytes, `int.from_bytes()` y `to_bytes()`:
 
 | Campo | Bytes | Uso |
 | --- | ---: | --- |
@@ -56,6 +59,11 @@ Orden de red (big-endian), formato struct `!4sHBIIIB`:
 | Offset | 4 | Inicio del payload respecto del original, en bytes |
 | Tamaño | 4 | Solo payload, en bytes |
 | FLAG | 1 | 1: hay datos posteriores; 0: último fragmento |
+
+Los cortes son IP `[0:4]`, puerto `[4:6]`, TTL `[6]`, ID `[7:11]`,
+offset `[11:15]`, tamaño `[15:19]`, FLAG `[19]` y mensaje `[20:]`.
+El router usa únicamente `socket`, `sys` e `ipaddress`; el emisor usa `socket`
+y `sys`. Se conserva `ipaddress` de actividad 5 para comprobar pertenencia a CIDR.
 
 `parse_packet` retorna un diccionario con `ip`, `puerto`, `ttl`, `id`,
 `offset`, `tamano`, `flag` y `mensaje` (bytes). `create_packet` realiza la operación

@@ -4,9 +4,9 @@ Pruebas locales realizadas el 18 de noviembre de 2026 con Python y sockets UDP.
 
 ## Implementación
 
-El header ocupa 20 bytes: IP (4), puerto (2), TTL (1), ID (4), offset (4), tamaño (4) y FLAG (1). Los enteros se codifican en big-endian. Tamaño cuenta exclusivamente bytes del payload; offset también se mide en bytes. El parseo rechaza headers truncados, tamaños incoherentes y flags distintos de 0 y 1.
+El header ocupa 20 bytes: IP (4), puerto (2), TTL (1), ID (4), offset (4), tamaño (4) y FLAG (1). Los enteros se codifican en big-endian usando to_bytes() y se leen con int.from_bytes() o acceso directo para campos de un byte. Los cortes son IP [0:4], puerto [4:6], TTL [6], ID [7:11], offset [11:15], tamaño [15:19] y FLAG [19]; el mensaje comienza en [20:]. Tamaño cuenta exclusivamente bytes del payload; offset también se mide en bytes. El parseo rechaza headers truncados, tamaños incoherentes y flags distintos de 0 y 1.
 
-Se extendió la versión final de actividad 5: las funciones parse_packet y create_packet agregan los campos de fragmentación; check_routes conserva sus argumentos y retorna ahora siguiente salto junto con MTU. También se conserva el orden de argumentos del emisor, agregando opciones para ID y tamaño total.
+Se extendió la versión final de actividad 5: las funciones parse_packet y create_packet agregan los campos de fragmentación; check_routes conserva sus argumentos y retorna ahora siguiente salto junto con MTU. También se conserva el orden de los primeros seis argumentos del emisor, agregando un ID obligatorio y un tamaño total opcional. Los argumentos se leen mediante sys.argv, como en actividad 5. El ID lo elige el usuario y debe distinguir datagramas simultáneos. El router usa socket, sys e ipaddress; el emisor, socket y sys. La codificación se expresa con operaciones básicas de bytes, sin struct; no se usan argparse ni secrets.
 
 Cada tabla indica red, rango de puertos destino, siguiente salto y MTU. Se respeta la primera área coincidente y se alternan sus rutas con round-robin por área (red y rango de puertos), como en actividad 5. Cada recepción reenviada elige una ruta; sus subfragmentos comparten siguiente salto y MTU. El TTL disminuye una vez antes de reenviar. TTL 0 se descarta incluso en destino; TTL 1 puede entregarse localmente o reenviarse como TTL 0, que el siguiente router descarta.
 
@@ -35,13 +35,13 @@ Estos datagramas grandes usaron TTL inicial 30 para permitir observar fragmentac
 | 1004 | R4 | 80 | 80, 80, 30 | Mensaje completo |
 | 1005 | R1 | 100 | 100, 70 | Mensaje completo |
 
-Cambiar el router de entrada modifica el primer MTU y el estado de round-robin que se encuentra. En ID 1002, desde R2, el primer enlace elegido tuvo MTU 80 y produjo paquetes de 80, 80 y 30 bytes (offsets 0, 60 y 120). Los fragmentos pueden seguir rutas diferentes, acumular TTL distintos y llegar desordenados; el reensamblaje depende de ID, offset y FLAG, no del orden de llegada.
+Cambiar el router de entrada modifica el primer MTU y el estado de round-robin que se encuentra. En ID 1002, desde R2, el primer enlace elegido tuvo MTU 80 y produjo paquetes de 80, 80, 30 bytes (offsets 0, 60, 120). Los fragmentos pueden seguir rutas diferentes, acumular TTL distintos y llegar desordenados; el reensamblaje depende de ID, offset y FLAG, no del orden de llegada.
 
 Se verificó además recepción directa en R5 de un datagrama fragmentado en orden y de otros dos IDs con fragmentos en orden inverso e intercalados. Los tres mensajes se imprimieron completos. En test_reception.py se comprobó que el router no imprime mientras falta un fragmento, incluso si ya llegó el último con FLAG 0. Completar uno de dos IDs intercalados no provoca la impresión del otro. También se verificó un duplicado mientras el datagrama estaba pendiente y un mensaje UTF-8 con caracteres divididos entre fragmentos.
 
-Por último se ejecutó enviar.py por consola con la interfaz de actividad 5 y las opciones --id 4000 --total 150. El emisor produjo un paquete de 150 bytes y R5 recibió los 130 bytes de datos completos. Así se verificaron tanto las funciones como el script de envío pedido en el enunciado.
+Por último se ejecutó enviar.py por consola con los argumentos de actividad 5 seguidos de ID 4000 y tamaño total 150. El emisor produjo un paquete de 150 bytes y R5 recibió los 130 bytes de datos completos. Así se verificaron tanto las funciones como el script de envío pedido en el enunciado.
 
-Las pruebas del emisor verificaron que el destino del header se conserva aunque el paquete se envíe a un puerto de entrada diferente, que el tamaño se calcula en bytes UTF-8 y que puede generarse un ID automáticamente. También se rechazaron TTL fuera de 1-255, un ID fuera de 32 bits, una dirección IPv4 inválida y tamaños totales incompatibles con el mensaje o el máximo de UDP IPv4.
+Las pruebas del emisor verificaron que el destino del header se conserva aunque el paquete se envíe a un puerto de entrada diferente, que el tamaño se calcula en bytes UTF-8 y que el ID indicado por el usuario se conserva. También se rechazaron la ausencia del ID, TTL fuera de 1-255, IDs negativos o fuera de 32 bits, argumentos numéricos inválidos, una dirección IPv4 inválida y tamaños totales incompatibles con el mensaje o el máximo de UDP IPv4. La prueba del header verifica sus campos contra bytes construidos manualmente, incluidos los valores máximos representables de IP, puerto, TTL, ID y offset.
 
 ## Reproducción y límites
 
@@ -57,8 +57,8 @@ El primer comando ejecuta las 15 pruebas. El segundo levanta sus cinco routers, 
 Para un envío manual, con los cinco routers del README.md escuchando en 8881-8885:
 
 ```powershell
-python enviar.py 127.0.0.1 8885 'hola!' 127.0.0.1 8881 10 --id 347
-python enviar.py 127.0.0.1 8885 'mensaje de prueba' 127.0.0.1 8881 30 --id 348 --total 150
+python enviar.py 127.0.0.1 8885 'hola!' 127.0.0.1 8881 10 347
+python enviar.py 127.0.0.1 8885 'mensaje de prueba' 127.0.0.1 8881 30 348 150
 ```
 
 El primer comando construye un datagrama de 25 bytes; el segundo completa con puntos un payload de 130 bytes para alcanzar 150 bytes totales. Ambos entran por R1 y tienen como destino final R5.

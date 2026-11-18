@@ -1,44 +1,45 @@
 """Emisor del protocolo binario de actividad 6."""
-import argparse
-import secrets
 import socket
+import sys
 from router import HEADER_SIZE, create_packet
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("IP_final")
-    parser.add_argument("puerto_final", type=int)
-    parser.add_argument("mensaje")
-    parser.add_argument("IP_envio")
-    parser.add_argument("puerto_envio", type=int)
-    parser.add_argument("TTL", type=int)
-    parser.add_argument("--id", type=int, default=None)
-    parser.add_argument("--total", type=int, help="Tamaño total; rellena con puntos")
-    args = parser.parse_args()
-    if not 1 <= args.TTL <= 255:
-        parser.error("El TTL inicial debe estar entre 1 y 255")
-    if not (0 <= args.puerto_final <= 65535 and 1 <= args.puerto_envio <= 65535):
-        parser.error("Puertos fuera de rango")
-    if args.id is not None and not 0 <= args.id < 2**32:
-        parser.error("ID debe estar entre 0 y 2**32 - 1")
-    for address in (args.IP_final, args.IP_envio):
+    if len(sys.argv) not in (8, 9):
+        sys.exit('Uso: python enviar.py IP_final puerto_final "mensaje" '
+                 'IP_envio puerto_envio TTL ID [tamano_total]')
+    ip_final, ip_envio = sys.argv[1], sys.argv[4]
+    try:
+        puerto_final = int(sys.argv[2])
+        puerto_envio = int(sys.argv[5])
+        ttl = int(sys.argv[6])
+        identifier = int(sys.argv[7])
+        total = int(sys.argv[8]) if len(sys.argv) == 9 else None
+    except ValueError:
+        sys.exit("Los puertos, TTL, ID y tamaño total deben ser números enteros.")
+    if not 1 <= ttl <= 255:
+        sys.exit("El TTL inicial debe estar entre 1 y 255")
+    if not (0 <= puerto_final <= 65535 and 1 <= puerto_envio <= 65535):
+        sys.exit("Puertos fuera de rango")
+    if not 0 <= identifier < 2**32:
+        sys.exit("ID debe estar entre 0 y 2**32 - 1")
+    for address in (ip_final, ip_envio):
         try:
             socket.inet_pton(socket.AF_INET, address)
         except OSError:
-            parser.error(f"Dirección IPv4 inválida: {address}")
-    payload = args.mensaje.encode("utf-8")
-    if args.total is not None:
-        if args.total < HEADER_SIZE + len(payload):
-            parser.error("El total solicitado no alcanza para header y mensaje")
-        payload = payload.ljust(args.total - HEADER_SIZE, b".")
-    if HEADER_SIZE + len(payload) > 65507:
-        parser.error("El paquete supera el máximo de 65507 bytes del payload UDP IPv4")
-    packet = create_packet(dict(ip=args.IP_final, puerto=args.puerto_final, ttl=args.TTL,
-        id=args.id if args.id is not None else secrets.randbits(32), offset=0,
+            sys.exit(f"Dirección IPv4 inválida: {address}")
+    payload = sys.argv[3].encode("utf-8")
+    if HEADER_SIZE + len(payload) > 65507 or (total is not None and total > 65507):
+        sys.exit("El paquete supera el máximo de 65507 bytes del payload UDP IPv4")
+    if total is not None:
+        if total < HEADER_SIZE + len(payload):
+            sys.exit("El total solicitado no alcanza para header y mensaje")
+        payload = payload.ljust(total - HEADER_SIZE, b".")
+    packet = create_packet(dict(ip=ip_final, puerto=puerto_final, ttl=ttl,
+        id=identifier, offset=0,
         flag=0, mensaje=payload))
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as connection:
-        connection.sendto(packet, (args.IP_envio, args.puerto_envio))
+        connection.sendto(packet, (ip_envio, puerto_envio))
     print(f"Enviados {len(packet)} bytes (header={HEADER_SIZE}, payload={len(payload)})")
 
 

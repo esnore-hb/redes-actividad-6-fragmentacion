@@ -114,7 +114,7 @@ def main():
                 # Ejecutar también la interfaz de consola heredada de actividad 5.
                 cli = subprocess.run([sys.executable, str(ROOT / "enviar.py"),
                     "127.0.0.1", str(ports[4]), "desde-emisor:", "127.0.0.1",
-                    str(ports[0]), "30", "--id", "4000", "--total", "150"],
+                    str(ports[0]), "30", "4000", "150"],
                     capture_output=True, text=True, encoding="utf-8", timeout=8,
                     env={**os.environ, "PYTHONIOENCODING": "utf-8"})
                 assert cli.returncode == 0, cli.stderr

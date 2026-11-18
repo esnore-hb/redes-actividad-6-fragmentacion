@@ -1,25 +1,29 @@
 """Mini-router UDP con TTL, round-robin y fragmentación por enlace."""
-import argparse
 import ipaddress
 import socket
-import struct
+import sys
 
 
 # IPv4 (4), puerto (2), TTL (1), ID (4), offset (4), tamaño (4), flag (1).
-HEADER = struct.Struct("!4sHBIIIB")
-HEADER_SIZE = HEADER.size
+HEADER_SIZE = 20
 
 
 def parse_packet(IP_packet):
     if len(IP_packet) < HEADER_SIZE:
         raise ValueError("Header incompleto")
-    ip, puerto, ttl, identifier, offset, size, flag = HEADER.unpack_from(IP_packet)
+    ip = socket.inet_ntop(socket.AF_INET, IP_packet[:4])
+    puerto = int.from_bytes(IP_packet[4:6], byteorder="big")
+    ttl = IP_packet[6]
+    identifier = int.from_bytes(IP_packet[7:11], byteorder="big")
+    offset = int.from_bytes(IP_packet[11:15], byteorder="big")
+    size = int.from_bytes(IP_packet[15:19], byteorder="big")
+    flag = IP_packet[19]
     mensaje = IP_packet[HEADER_SIZE:]
     if size != len(mensaje):
         raise ValueError("Tamaño declarado distinto del payload recibido")
     if flag not in (0, 1):
         raise ValueError("FLAG debe ser 0 o 1")
-    return dict(ip=socket.inet_ntoa(ip), puerto=puerto, ttl=ttl,
+    return dict(ip=ip, puerto=puerto, ttl=ttl,
                 id=identifier, offset=offset, tamano=size, flag=flag,
                 mensaje=mensaje)
 
@@ -33,12 +37,16 @@ def create_packet(packet):
     if packet["flag"] not in (0, 1):
         raise ValueError("FLAG debe ser 0 o 1")
     try:
-        header = HEADER.pack(socket.inet_aton(packet["ip"]), packet["puerto"],
-                             packet["ttl"], packet["id"], packet["offset"],
-                             len(mensaje), packet["flag"])
-    except (struct.error, OSError) as error:
+        ip = socket.inet_pton(socket.AF_INET, packet["ip"])
+        puerto = packet["puerto"].to_bytes(2, byteorder="big")
+        ttl = packet["ttl"].to_bytes(1, byteorder="big")
+        identifier = packet["id"].to_bytes(4, byteorder="big")
+        offset = packet["offset"].to_bytes(4, byteorder="big")
+        size = len(mensaje).to_bytes(4, byteorder="big")
+        flag = packet["flag"].to_bytes(1, byteorder="big")
+    except (OverflowError, AttributeError, OSError) as error:
         raise ValueError(f"Campos inválidos: {error}") from error
-    return header + mensaje
+    return ip + puerto + ttl + identifier + offset + size + flag + mensaje
 
 
 def fragment_IP_packet(IP_packet, MTU):
@@ -167,9 +175,12 @@ def run_router(ip, port, routes_file):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("router_IP")
-    parser.add_argument("router_puerto", type=int)
-    parser.add_argument("router_rutas")
-    args = parser.parse_args()
-    run_router(args.router_IP, args.router_puerto, args.router_rutas)
+    if len(sys.argv) != 4:
+        sys.exit("Uso: python router.py router_IP router_puerto router_rutas.txt")
+    try:
+        router_puerto = int(sys.argv[2])
+    except ValueError:
+        sys.exit("El puerto debe ser un número entero.")
+    if not 1 <= router_puerto <= 65535:
+        sys.exit("El puerto del router debe estar entre 1 y 65535.")
+    run_router(sys.argv[1], router_puerto, sys.argv[3])

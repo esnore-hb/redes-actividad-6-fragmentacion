@@ -134,13 +134,25 @@ class HeaderTests(unittest.TestCase):
                + (347).to_bytes(4, "big") + bytes(4)
                + (256).to_bytes(4, "big") + b"\x00" + bytes(range(256)))
         self.assertEqual(HEADER_SIZE, 20)
-        self.assertEqual(create_packet(parse_packet(raw)), raw)
-        self.assertEqual(parse_packet(raw)["tamano"], 256)
+        parsed = parse_packet(raw)
+        self.assertEqual(parsed, dict(ip="127.0.0.1", puerto=8885, ttl=10,
+            id=347, offset=0, tamano=256, flag=0, mensaje=bytes(range(256))))
+        self.assertEqual(create_packet(parsed), raw)
+        boundary = dict(ip="255.255.255.255", puerto=65535, ttl=255,
+            id=2**32 - 1, offset=2**32 - 1, tamano=0, flag=1, mensaje=b"")
+        self.assertEqual(parse_packet(create_packet(boundary)), boundary)
 
     def test_invalid_packets(self):
         for raw in (b"short", packet()[:-1], packet() + b"extra"):
             with self.assertRaises(ValueError):
                 parse_packet(raw)
+        for field, value in (("puerto", 65536), ("ttl", 256), ("id", 2**32),
+                             ("offset", -1), ("flag", 2), ("ttl", "10")):
+            with self.subTest(field=field, value=value):
+                fields = parse_packet(packet())
+                fields[field] = value
+                with self.assertRaises(ValueError):
+                    create_packet(fields)
 
 
 if __name__ == "__main__":
