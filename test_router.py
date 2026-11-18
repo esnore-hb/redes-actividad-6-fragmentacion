@@ -12,6 +12,59 @@ def packet(payload=b"hola!", identifier=347, **fields):
 
 
 class RouteTests(unittest.TestCase):
+    def test_cidr_prefix_membership_and_bare_ip(self):
+        cases = [
+            ("0.0.0.0/0", "255.255.255.255", True),
+            ("10.0.0.1/8", "10.255.255.255", True),
+            ("10.0.0.1/8", "11.0.0.1", False),
+            ("10.2.0.1/16", "10.2.255.255", True),
+            ("10.2.0.1/16", "10.3.0.1", False),
+            ("10.2.3.99/24", "10.2.3.0", True),
+            ("10.2.3.99/24", "10.2.3.255", True),
+            ("10.2.3.99/24", "10.2.4.0", False),
+            ("10.2.3.1/31", "10.2.3.0", True),
+            ("10.2.3.1/31", "10.2.3.2", False),
+            ("10.2.3.1/32", "10.2.3.1", True),
+            ("10.2.3.1/32", "10.2.3.2", False),
+            ("127.0.0.1", "127.0.0.1", True),
+            ("127.0.0.1", "127.0.0.2", False),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            routes = Path(directory) / "rutas.txt"
+            for network, destination, matches in cases:
+                with self.subTest(network=network, destination=destination):
+                    routes.write_text(f"{network} 8881 8885 127.0.0.1 9001 100\n")
+                    result = check_routes(routes, (destination, 8885), {})
+                    self.assertEqual(result, (("127.0.0.1", 9001), 100) if matches else None)
+
+    def test_invalid_ipv4_and_prefixes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = Path(directory) / "rutas.txt"
+            for network in ("127.0.0.1/33", "127.0.0.1/-1", "256.0.0.1/24",
+                            "127.0.1/24", "no-es-ip/24"):
+                with self.subTest(network=network):
+                    routes.write_text(f"{network} 8881 8885 127.0.0.1 9001 100\n")
+                    with self.assertRaises(ValueError):
+                        load_routes(routes)
+            routes.write_text("127.0.0.1/24 8881 8885 127.0.0.999 9001 100\n")
+            with self.assertRaises(ValueError):
+                load_routes(routes)
+            routes.write_text("127.0.0.1/24 8881 8885 127.0.0.1 9001 100\n")
+            with self.assertRaises(ValueError):
+                check_routes(routes, ("127.0.0.999", 8885), {})
+
+    def test_equivalent_cidr_addresses_share_round_robin_area(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = Path(directory) / "rutas.txt"
+            routes.write_text(
+                "10.2.3.99/24 8881 8885 127.0.0.1 9001 100\n"
+                "10.2.3.0/24 8881 8885 127.0.0.1 9002 80\n")
+            turns = {}
+            self.assertEqual(check_routes(routes, ("10.2.3.7", 8881), turns),
+                             (("127.0.0.1", 9001), 100))
+            self.assertEqual(check_routes(routes, ("10.2.3.8", 8885), turns),
+                             (("127.0.0.1", 9002), 80))
+
     def test_round_robin_mtu_and_no_route(self):
         routes = Path(__file__).with_name("rutas_R2_v3_mtu.txt")
         counters = {}

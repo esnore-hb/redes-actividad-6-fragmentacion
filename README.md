@@ -43,7 +43,7 @@ python prueba_red.py
 La segunda prueba inicia y cierra sus cinco procesos en puertos 28881-28885,
 traduce las tablas conservando su topología y genera `evidencia-red.txt`.
 Requiere esos puertos disponibles. No modifica los archivos originales de rutas.
-La suite de `unittest` contiene 15 pruebas: 12 de funciones, una de recepción UDP
+La suite de `unittest` contiene 18 pruebas: 15 de funciones, una de recepción UDP
 y dos de la interfaz del emisor. La prueba de cinco routers se ejecuta aparte.
 
 ## Contrato binario
@@ -62,8 +62,10 @@ Orden de red (big-endian), con cortes de bytes, `int.from_bytes()` y `to_bytes()
 
 Los cortes son IP `[0:4]`, puerto `[4:6]`, TTL `[6]`, ID `[7:11]`,
 offset `[11:15]`, tamaño `[15:19]`, FLAG `[19]` y mensaje `[20:]`.
-El router usa únicamente `socket`, `sys` e `ipaddress`; el emisor usa `socket`
-y `sys`. Se conserva `ipaddress` de actividad 5 para comprobar pertenencia a CIDR.
+El router y el emisor usan únicamente `socket` y `sys`. Para comprobar
+pertenencia a CIDR se reutiliza `ip_a_entero` de actividad 5: se convierte cada
+IP a un entero y se desplazan los bits de host para comparar el prefijo de red.
+Esto contempla /0, /32 y direcciones con bits de host en la tabla.
 
 `parse_packet` retorna un diccionario con `ip`, `puerto`, `ttl`, `id`,
 `offset`, `tamano`, `flag` y `mensaje` (bytes). `create_packet` realiza la operación
@@ -87,7 +89,7 @@ de TTL: solo se procesan valores mayores que cero y se resta uno al reenviar.
 Un TTL 1 sale como TTL 0 y se descarta al llegar al siguiente router.
 Se extiende el header de 7 a 20 bytes y se añade MTU a las rutas.
 Las tablas se transcriben del enunciado; R5 conserva la dirección sin prefijo,
-interpretada como /32 por `ipaddress`, suficiente para el destino 127.0.0.1.
+interpretada como /32 cuando falta el prefijo, suficiente para el destino 127.0.0.1.
 
 No se implementan retransmisión UDP ni expiración de buffers incompletos.
 Los IDs deben ser únicos entre datagramas simultáneos hacia un mismo router.

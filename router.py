@@ -1,5 +1,4 @@
 """Mini-router UDP con TTL, round-robin y fragmentación por enlace."""
-import ipaddress
 import socket
 import sys
 
@@ -96,6 +95,13 @@ def reassemble_IP_packet(fragment_list):
                           "mensaje": payload})
 
 
+def ip_a_entero(ip: str) -> int:
+    octetos = [int(numero) for numero in ip.split(".")]
+    if len(octetos) != 4 or any(numero < 0 or numero > 255 for numero in octetos):
+        raise ValueError("La dirección debe contener cuatro números entre 0 y 255.")
+    return int.from_bytes(bytes(octetos), byteorder="big")
+
+
 def load_routes(filename):
     routes = []
     with open(filename, encoding="utf-8") as source:
@@ -106,8 +112,14 @@ def load_routes(filename):
             if len(fields) != 6:
                 raise ValueError(f"Línea {number}: se esperan seis campos")
             network, low, high, ip, port, mtu = fields
-            route = (ipaddress.ip_network(network, strict=False), int(low),
-                     int(high), (str(ipaddress.IPv4Address(ip)), int(port)), int(mtu))
+            ip_red, separador, prefijo = network.partition("/")
+            prefijo = int(prefijo) if separador else 32
+            if not 0 <= prefijo <= 32:
+                raise ValueError(f"Línea {number}: el prefijo debe estar entre 0 y 32")
+            # Igual que en actividad 5, quitamos los bits de host.
+            red = ip_a_entero(ip_red) >> (32 - prefijo)
+            ip_a_entero(ip)  # Validar también la IP del siguiente salto.
+            route = ((red, prefijo), int(low), int(high), (ip, int(port)), int(mtu))
             if not (0 <= route[1] <= route[2] <= 65535 and
                     0 <= route[3][1] <= 65535 and route[4] > HEADER_SIZE):
                 raise ValueError(f"Línea {number}: rango, puerto o MTU inválido")
@@ -118,11 +130,13 @@ def load_routes(filename):
 def check_routes(routes_file_name, destination_address, turnos):
     """Extiende actividad 5: ruta y MTU, con turnos por área de red."""
     ip, port = destination_address
+    ip_destino = ip_a_entero(ip)
     area_elegida = None
     matches = []
     for route in load_routes(routes_file_name):
         area = route[:3]
-        if ipaddress.IPv4Address(ip) in route[0] and route[1] <= port <= route[2]:
+        red, prefijo = route[0]
+        if ip_destino >> (32 - prefijo) == red and route[1] <= port <= route[2]:
             if area_elegida is None:
                 area_elegida = area
             if area == area_elegida:

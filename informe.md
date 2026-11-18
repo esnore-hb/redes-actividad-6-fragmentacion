@@ -44,7 +44,7 @@ Cada paquete o fragmento recibido elige una ruta una sola vez; sus subfragmentos
 
 El TTL se resta una vez por reenvío, antes de fragmentar, para que dividir un paquete no cuente como varios saltos. Se conserva la regla de actividad 5: un TTL 1 puede entregarse localmente o reenviarse como TTL 0, que el siguiente router descarta. Así se limitan los recorridos cíclicos sin modificar el destino final del header.
 
-Se mantiene ipaddress, ya utilizado en actividad 5, para comprobar pertenencia a redes CIDR en lugar de comparar solo cadenas de IP. Las tablas provistas se conservan: en R5, la dirección sin prefijo se interpreta como /32 y coincide con 127.0.0.1, utilizada en esta simulación.
+Para comprobar pertenencia a redes CIDR reutilizamos la función ip_a_entero de actividad 5. Valida los cuatro componentes de la dirección, los convierte a bytes y obtiene un entero. Después desplazamos a la derecha 32 - prefijo bits tanto la dirección de red como el destino, y comparamos los resultados. Así se comparan solo los bits de red, en lugar de exigir que las cadenas de IP sean idénticas. Elegimos esta operación para mantener el mismo criterio de actividad 5 con operaciones básicas de Python, sin ipaddress. El prefijo se valida entre 0 y 32; /0 admite cualquier IPv4 y /32 exige coincidencia exacta. Las tablas provistas se conservan: en R5, cuando falta el prefijo se asume /32, que coincide con 127.0.0.1 en esta simulación.
 
 ### Fragmentación y reensamblaje
 
@@ -60,13 +60,13 @@ Los duplicados idénticos se toleran mientras el datagrama está pendiente; los 
 
 Conservamos los primeros seis argumentos del emisor de actividad 5 y agregamos ID obligatorio y tamaño total opcional. Se leen con sys.argv para mantener una interfaz sencilla, repetible desde la terminal y consistente con la actividad anterior, sin argparse. Pedir el ID explícitamente evita generación aleatoria y permite identificar cada envío en las trazas. El tamaño total opcional rellena los datos con puntos para reproducir exactamente el experimento de 150 bytes.
 
-Usamos el emisor binario para realizar los envíos. Aunque un apartado menciona netcat, otro pide el script de forwarding y el protocolo requiere campos binarios: escribir IP, puerto y mensaje como texto no construye ese header. El router usa socket, sys e ipaddress; el emisor, socket y sys. No se utiliza secrets.
+Usamos el emisor binario para realizar los envíos. Aunque un apartado menciona netcat, otro pide el script de forwarding y el protocolo requiere campos binarios: escribir IP, puerto y mensaje como texto no construye ese header. Tanto el router como el emisor usan únicamente socket y sys. No se utiliza secrets.
 
 Separamos las pruebas de funciones de las pruebas con procesos UDP: las primeras permiten comprobar límites de tamaño y fragmentos faltantes de forma controlada; las segundas verifican que el ciclo de recepción, las rutas y el envío realmente se integran. Para los datagramas grandes usamos TTL 30 y comprobamos el agotamiento en casos separados, de modo que un descarte por TTL no oculte el funcionamiento de la fragmentación.
 
 ## Pruebas y observaciones
 
-Se ejecutaron 15 pruebas con resultado OK: 12 pruebas de funciones, una de recepción UDP con un proceso router real y dos de la interfaz del emisor. Cubren ida y vuelta de bytes construidos manualmente, validación de paquetes, límites de MTU, refragmentación, reensamblaje de un datagrama refragmentado, fragmentos faltantes o duplicados e IDs intercalados, solapamientos, payload vacío, TTL diferentes y selección de rutas con MTU. Se verificó round-robin con tres alternativas, turnos compartidos por área e independencia entre áreas. El payload binario y UTF-8 se maneja en bytes; la decodificación se realiza al completar el mensaje.
+Se ejecutaron 18 pruebas con resultado OK: 15 pruebas de funciones, una de recepción UDP con un proceso router real y dos de la interfaz del emisor. Cubren ida y vuelta de bytes construidos manualmente, validación de paquetes, límites de MTU, refragmentación, reensamblaje de un datagrama refragmentado, fragmentos faltantes o duplicados e IDs intercalados, solapamientos, payload vacío, TTL diferentes y selección de rutas con MTU. Se verificó round-robin con tres alternativas, turnos compartidos por área e independencia entre áreas. Se agregaron casos CIDR /0, /8, /16, /24, /31 y /32, direcciones sin prefijo, entradas inválidas y redes equivalentes escritas con distintos bits de host: estas últimas deben compartir el turno de round-robin. El payload binario y UTF-8 se maneja en bytes; la decodificación se realiza al completar el mensaje.
 
 La prueba de red inició cinco procesos reales usando las tablas del enunciado. Para coexistir con actividad 5, los puertos 8881-8885 se tradujeron a 28881-28885. Los MTU, rangos y enlaces se mantuvieron. La evidencia detallada está en evidencia-red.txt y se reproduce con python prueba_red.py.
 
@@ -102,7 +102,7 @@ python -m unittest -v
 python prueba_red.py
 ```
 
-El primer comando ejecuta las 15 pruebas. El segundo levanta sus cinco routers, realiza los envíos, comprueba MTU y entrega, escribe evidencia-red.txt y cierra los procesos. Los puertos 28881-28885 deben estar disponibles. El orden global de las líneas de diagnóstico y algunos recorridos pueden variar entre ejecuciones porque los routers son procesos concurrentes; la tabla anterior corresponde a la evidencia incluida.
+El primer comando ejecuta las 18 pruebas. El segundo levanta sus cinco routers, realiza los envíos, comprueba MTU y entrega, escribe evidencia-red.txt y cierra los procesos. Los puertos 28881-28885 deben estar disponibles. El orden global de las líneas de diagnóstico y algunos recorridos pueden variar entre ejecuciones porque los routers son procesos concurrentes; la tabla anterior corresponde a la evidencia incluida.
 
 Para ejecutar manualmente la red, abrir cinco terminales en la carpeta del repositorio y ejecutar una línea en cada una. Cada línea inicia un proceso independiente:
 
