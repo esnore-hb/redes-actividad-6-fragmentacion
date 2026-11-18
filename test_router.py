@@ -1,7 +1,13 @@
 from pathlib import Path
 import tempfile
 import unittest
-from router import check_routes, load_routes
+from router import (check_routes, load_routes, HEADER_SIZE, create_packet,
+                    parse_packet, fragment_IP_packet)
+
+
+def packet(payload=b"hola!", identifier=347, **fields):
+    return create_packet({**dict(ip="127.0.0.1", puerto=8885, ttl=10,
+        id=identifier, offset=0, flag=0, mensaje=payload), **fields})
 
 
 class RouteTests(unittest.TestCase):
@@ -31,6 +37,42 @@ class RouteTests(unittest.TestCase):
             self.assertEqual(selected, [9001, 9004, 9002, 9005, 9003, 9001])
             self.assertEqual(check_routes(routes, ("192.0.2.1", 80), counters),
                              (("127.0.0.1", 7000), 100))
+
+
+
+class FragmentationTests(unittest.TestCase):
+    def test_fragmentation_boundaries(self):
+        raw = packet(b"a" * 130)
+        self.assertEqual(fragment_IP_packet(raw, 150), [raw])
+        self.assertEqual(fragment_IP_packet(raw, 151), [raw])
+        fragments = fragment_IP_packet(raw, 100)
+        self.assertEqual([len(f) for f in fragments], [100, 70])
+        self.assertEqual([parse_packet(f)["offset"] for f in fragments], [0, 80])
+        self.assertEqual([parse_packet(f)["flag"] for f in fragments], [1, 0])
+        with self.assertRaises(ValueError):
+            fragment_IP_packet(raw, HEADER_SIZE)
+
+    def test_refragmentation_preserves_parent_flag_and_offsets(self):
+        raw = packet(bytes(range(130)))
+        fragments = fragment_IP_packet(raw, 100)
+        smaller = [child for parent in fragments
+                   for child in fragment_IP_packet(parent, 50)]
+        self.assertEqual([parse_packet(f)["offset"] for f in smaller], [0, 30, 60, 80, 110])
+        self.assertEqual([parse_packet(f)["flag"] for f in smaller], [1, 1, 1, 1, 0])
+        self.assertTrue(all(len(f) <= 50 for f in smaller))
+        self.assertEqual(b"".join(parse_packet(f)["mensaje"] for f in smaller),
+                         parse_packet(raw)["mensaje"])
+        self.assertTrue(all(parse_packet(f)["id"] == 347 and
+                            parse_packet(f)["ttl"] == 10 for f in smaller))
+
+    def test_refragmentation_of_nonfinal_parent(self):
+        parent = packet(bytes(range(60)), offset=37, flag=1)
+        fragments = fragment_IP_packet(parent, 50)
+        self.assertEqual([len(f) for f in fragments], [50, 50])
+        self.assertEqual([parse_packet(f)["offset"] for f in fragments], [37, 67])
+        self.assertEqual([parse_packet(f)["flag"] for f in fragments], [1, 1])
+        self.assertEqual(b"".join(parse_packet(f)["mensaje"] for f in fragments),
+                         bytes(range(60)))
 
 
 if __name__ == "__main__":

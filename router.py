@@ -41,6 +41,23 @@ def create_packet(packet):
     return header + mensaje
 
 
+def fragment_IP_packet(IP_packet, MTU):
+    packet = parse_packet(IP_packet)
+    if len(IP_packet) <= MTU:
+        return [IP_packet]
+    capacity = MTU - HEADER_SIZE
+    if capacity <= 0:
+        raise ValueError("El MTU debe permitir header y al menos un byte de datos")
+    fragments = []
+    for start in range(0, len(packet["mensaje"]), capacity):
+        chunk = packet["mensaje"][start:start + capacity]
+        more = start + len(chunk) < len(packet["mensaje"])
+        fragments.append(create_packet({**packet, "mensaje": chunk,
+            "tamano": len(chunk), "offset": packet["offset"] + start,
+            "flag": 1 if more else packet["flag"]}))
+    return fragments
+
+
 def load_routes(filename):
     routes = []
     with open(filename, encoding="utf-8") as source:
@@ -103,10 +120,12 @@ def run_router(ip, port, routes_file):
                     continue
                 next_hop, mtu = route
                 forwarded = create_packet({**packet, "ttl": packet["ttl"] - 1})
-                # En esta etapa se obtiene MTU, pero todavía no se fragmenta.
-                print(f"FORWARD id={packet['id']} ttl={packet['ttl'] - 1} "
-                      f"next={next_hop[1]} mtu={mtu}", flush=True)
-                connection.sendto(forwarded, next_hop)
+                for fragment in fragment_IP_packet(forwarded, mtu):
+                    info = parse_packet(fragment)
+                    print(f"FORWARD id={info['id']} offset={info['offset']} "
+                          f"size={len(fragment)} flag={info['flag']} ttl={info['ttl']} "
+                          f"next={next_hop[1]} mtu={mtu}", flush=True)
+                    connection.sendto(fragment, next_hop)
             except ValueError as error:
                 print(f"DESCARTE INVÁLIDO: {error}", flush=True)
 
