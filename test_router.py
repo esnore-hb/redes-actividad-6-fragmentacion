@@ -1,8 +1,9 @@
+import random
 from pathlib import Path
 import tempfile
 import unittest
 from router import (check_routes, load_routes, HEADER_SIZE, create_packet,
-                    parse_packet, fragment_IP_packet)
+                    parse_packet, fragment_IP_packet, reassemble_IP_packet)
 
 
 def packet(payload=b"hola!", identifier=347, **fields):
@@ -73,6 +74,57 @@ class FragmentationTests(unittest.TestCase):
         self.assertEqual([parse_packet(f)["flag"] for f in fragments], [1, 1])
         self.assertEqual(b"".join(parse_packet(f)["mensaje"] for f in fragments),
                          bytes(range(60)))
+
+
+
+class ReassemblyTests(unittest.TestCase):
+    def test_missing_duplicate_and_interleaved(self):
+        originals = [packet(b"a" * 130, 1), packet("á🐶".encode() * 25, 2)]
+        groups = [fragment_IP_packet(raw, 50) for raw in originals]
+        self.assertIsNone(reassemble_IP_packet([]))
+        self.assertEqual(reassemble_IP_packet([packet()]), packet())
+        for group in groups:
+            for index in range(len(group)):
+                self.assertIsNone(reassemble_IP_packet(group[:index] + group[index+1:]))
+            self.assertEqual(reassemble_IP_packet(group + [group[0]]),
+                             originals[groups.index(group)])
+        pending = {1: [], 2: []}
+        stream = groups[0] + groups[1]
+        random.Random(6).shuffle(stream)
+        completed = {}
+        for raw in stream:
+            identifier = parse_packet(raw)["id"]
+            pending[identifier].append(raw)
+            complete = reassemble_IP_packet(pending[identifier])
+            if complete:
+                completed[identifier] = complete
+        self.assertEqual(completed, dict(zip((1, 2), originals)))
+        self.assertIsNone(reassemble_IP_packet(groups[0] + groups[1]))
+
+    def test_overlap_rejected(self):
+        fragments = fragment_IP_packet(packet(b"a" * 130), 100)
+        modified = parse_packet(fragments[1])
+        modified["offset"] = 79
+        self.assertIsNone(reassemble_IP_packet([fragments[0], create_packet(modified)]))
+
+    def test_empty_payload_and_single_incomplete_fragments(self):
+        self.assertEqual(reassemble_IP_packet([packet(b"")]), packet(b""))
+        self.assertIsNone(reassemble_IP_packet([packet(b"abc", flag=1)]))
+        self.assertIsNone(reassemble_IP_packet([packet(b"abc", offset=3)]))
+
+    def test_mixed_ttl_after_different_paths(self):
+        fragments = fragment_IP_packet(packet(b"a" * 130), 50)
+        changed = [create_packet({**parse_packet(raw), "ttl": 9 - i})
+                   for i, raw in enumerate(fragments)]
+        assembled = parse_packet(reassemble_IP_packet(changed[::-1]))
+        self.assertEqual(assembled["mensaje"], b"a" * 130)
+        self.assertEqual(assembled["ttl"], 5)
+
+    def test_reassemble_refragmented_packet(self):
+        original = packet(bytes(range(130)))
+        fragments = [child for parent in fragment_IP_packet(original, 100)
+                     for child in fragment_IP_packet(parent, 50)]
+        self.assertEqual(reassemble_IP_packet(fragments[::-1]), original)
 
 
 if __name__ == "__main__":

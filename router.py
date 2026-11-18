@@ -1,4 +1,4 @@
-"""Header binario de actividad 6: creación e interpretación de paquetes."""
+"""Mini-router UDP con TTL, round-robin y fragmentación por enlace."""
 import argparse
 import ipaddress
 import socket
@@ -58,6 +58,36 @@ def fragment_IP_packet(IP_packet, MTU):
     return fragments
 
 
+def reassemble_IP_packet(fragment_list):
+    if not fragment_list:
+        return None
+    fragments = sorted((parse_packet(raw) for raw in fragment_list),
+                       key=lambda p: p["offset"])
+    first = fragments[0]
+    identity = (first["ip"], first["puerto"], first["id"])
+    cursor, chunks, seen = 0, [], set()
+    last = False
+    for fragment in fragments:
+        if (fragment["ip"], fragment["puerto"], fragment["id"]) != identity:
+            return None
+        signature = (fragment["offset"], fragment["mensaje"], fragment["flag"])
+        if signature in seen:
+            continue
+        seen.add(signature)
+        if last or fragment["offset"] != cursor:
+            return None
+        chunks.append(fragment["mensaje"])
+        cursor += fragment["tamano"]
+        last = fragment["flag"] == 0
+    if not last:
+        return None
+    payload = b"".join(chunks)
+    # Fragmentos pueden recorrer caminos con distinto número de saltos.
+    return create_packet({**first, "ttl": min(p["ttl"] for p in fragments),
+                          "offset": 0, "flag": 0, "tamano": len(payload),
+                          "mensaje": payload})
+
+
 def load_routes(filename):
     routes = []
     with open(filename, encoding="utf-8") as source:
@@ -100,7 +130,7 @@ def check_routes(routes_file_name, destination_address, turnos):
 
 def run_router(ip, port, routes_file):
     load_routes(routes_file)  # Validar antes de comenzar a recibir.
-    counters = {}
+    counters, pending = {}, {}
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as connection:
         connection.bind((ip, port))
         print(f"LISTO {ip}:{port}", flush=True)
@@ -112,7 +142,13 @@ def run_router(ip, port, routes_file):
                     print(f"DESCARTE TTL id={packet['id']} offset={packet['offset']}", flush=True)
                     continue
                 if (packet["ip"], packet["puerto"]) == (ip, port):
-                    print(packet["mensaje"].decode("utf-8", errors="replace"), flush=True)
+                    fragments = pending.setdefault(packet["id"], [])
+                    if raw not in fragments:
+                        fragments.append(raw)
+                    assembled = reassemble_IP_packet(fragments)
+                    if assembled is not None:
+                        del pending[packet["id"]]
+                        print(parse_packet(assembled)["mensaje"].decode("utf-8", errors="replace"), flush=True)
                     continue
                 route = check_routes(routes_file, (packet["ip"], packet["puerto"]), counters)
                 if route is None:
